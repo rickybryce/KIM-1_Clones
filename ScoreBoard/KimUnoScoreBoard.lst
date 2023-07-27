@@ -1,0 +1,140 @@
+pass 1
+
+LINE  LOC          LABEL     PICT
+
+   1  0200                   .ORG $0200
+   3  0200         RESTART   
+   4  0200                   LDA #$00
+   5  0202                   STA $F9
+   6  0204                   STA $FB
+   7  0206                   LDA #$EF
+   8  0208                   STA $FA
+   9  020A                   LDA #00
+  11  020C         MAIN      
+  12  020C                   JSR $1F1F ;SCANDS
+  13  020F                   JSR $1F6A ;GETKEY
+  14  0212                   CMP #$0E
+  15  0214                   BNE CONT
+  16  0216                   JMP $1C64
+  17  0219         CONT      
+  18  0219                   CMP #$07
+  19  021B                   BEQ INVIS
+  20  021D                   CMP #$06
+  21  021F                   BEQ DEVIS
+  22  0221                   CMP #$03
+  23  0223                   BEQ INHM
+  24  0225                   CMP #$02
+  25  0227                   BEQ DEHM
+  26  0229                   CMP #$00
+  27  022B                   BEQ RESTART
+  28  022D                   JMP MAIN
+  30  0230         INVIS     
+  31  0230                   CLC
+  32  0231                   SED
+  33  0232                   LDA #$01
+  34  0234                   ADC $FB
+  35  0236                   STA $FB
+  36  0238                   CLD
+  37  0239                   JMP MAIN
+  39  023C         DEVIS     
+  40  023C                   SED
+  41  023D                   LDA $FB
+  42  023F                   SEC
+  43  0240                   SBC #$01
+  44  0242                   STA $FB
+  45  0244                   CLC
+  46  0245                   CLD
+  47  0246                   JMP MAIN
+  49  0249         INHM      
+  50  0249                   CLC
+  51  024A                   SED
+  52  024B                   LDA #$01
+  53  024D                   ADC $F9
+  54  024F                   STA $F9
+  55  0251                   CLD
+  56  0252                   JMP MAIN
+  58  0255         DEHM      
+  59  0255                   SED
+  60  0256                   LDA $F9
+  61  0258                   SEC
+  62  0259                   SBC #$01
+  63  025B                   STA $F9
+  64  025D                   CLC
+  65  025E                   CLD
+  66  025F                   JMP MAIN
+
+symbols
+ CONT       $0219
+ DEHM       $0255
+ DEVIS      $023C
+ INHM       $0249
+ INVIS      $0230
+ MAIN       $020C
+ RESTART    $0200
+
+pass 2
+
+LOC   CODE         LABEL     INSTRUCTION
+
+0200                         * = $0200
+0200               RESTART   
+0200  A9 00                  LDA #$00
+0202  85 F9                  STA $F9
+0204  85 FB                  STA $FB
+0206  A9 EF                  LDA #$EF
+0208  85 FA                  STA $FA
+020A  A9 00                  LDA #$00
+020C               MAIN      
+020C  20 1F 1F               JSR $1F1F ;SCANDS
+020F  20 6A 1F               JSR $1F6A ;GETKEY
+0212  C9 0E                  CMP #$0E
+0214  D0 03                  BNE $0219
+0216  4C 64 1C               JMP $1C64
+0219               CONT      
+0219  C9 07                  CMP #$07
+021B  F0 13                  BEQ $0230
+021D  C9 06                  CMP #$06
+021F  F0 1B                  BEQ $023C
+0221  C9 03                  CMP #$03
+0223  F0 24                  BEQ $0249
+0225  C9 02                  CMP #$02
+0227  F0 2C                  BEQ $0255
+0229  C9 00                  CMP #$00
+022B  F0 D3                  BEQ $0200
+022D  4C 0C 02               JMP $020C
+0230               INVIS     
+0230  18                     CLC
+0231  F8                     SED
+0232  A9 01                  LDA #$01
+0234  65 FB                  ADC $FB
+0236  85 FB                  STA $FB
+0238  D8                     CLD
+0239  4C 0C 02               JMP $020C
+023C               DEVIS     
+023C  F8                     SED
+023D  A5 FB                  LDA $FB
+023F  38                     SEC
+0240  E9 01                  SBC #$01
+0242  85 FB                  STA $FB
+0244  18                     CLC
+0245  D8                     CLD
+0246  4C 0C 02               JMP $020C
+0249               INHM      
+0249  18                     CLC
+024A  F8                     SED
+024B  A9 01                  LDA #$01
+024D  65 F9                  ADC $F9
+024F  85 F9                  STA $F9
+0251  D8                     CLD
+0252  4C 0C 02               JMP $020C
+0255               DEHM      
+0255  F8                     SED
+0256  A5 F9                  LDA $F9
+0258  38                     SEC
+0259  E9 01                  SBC #$01
+025B  85 F9                  STA $F9
+025D  18                     CLC
+025E  D8                     CLD
+025F  4C 0C 02               JMP $020C
+
+done (code: 0200..0261).
