@@ -1,0 +1,161 @@
+pass 1
+
+LINE  LOC          LABEL     PICT
+
+   1               ; Timer for Kim Uno (Scan Based Timer)
+   2               ; 2 restarts at 0
+   3               ; 4 will exit to KIM
+   4               ; 1 starts the timer
+   5               ; 3 pauses the timer
+   6               ; assembled using 6502 Virtual online assembler
+   7               ; https://www.masswerk.at/6502/assembler.html
+   8               ; -- Ricky Bryce
+
+  12  0200                   .ORG $0200
+  14  0200         RESTART   
+  15  0200                   LDA #00 ; Load Zeros to Registers
+  16  0202                   LDX #00
+  17  0204                   LDY #00
+  18  0206                   STA $F9 ; Store Zeros to Display
+  19  0208                   STA $FA
+  20  020A                   STA $FB
+  22  020C         WAIT      
+  23  020C                   JSR $1F1F ; SCANDS (Update Display)
+  24  020F                   JSR $1F6A ; GETKEY (Check keys on Keypad)
+  25  0212                   CMP #$02 ; If 2, then Restart at Zero
+  26  0214                   BEQ RESTART
+  27  0216                   CMP #$04 ; If 4, then Exit to KIM
+  28  0218                   BNE CONT4 ; I had to BNE, since $1C64 is out of branch reach.
+  29  021A                   JMP $1C64 ; Exit 
+  31  021D         CONT4     
+  32  021D                   CMP #$01 ; If 1, then go to BEGIN to start the timer
+  33  021F                   BNE WAIT
+  34  0221                   JMP BEGIN
+  36  0224         BEGIN     
+  37  0224                   JSR $1F1F ; SCANDS
+  39  0227                   LDX #$09 ; Calibration for timer
+  40  0229         DELAY     
+  41  0229                   NOP
+  42  022A                   NOP
+  43  022B                   NOP
+  44  022C                   JSR $1F6A ; GETKEY
+  45  022F                   CMP #$03 ; If 3, then enter WAIT mode
+  46  0231                   BEQ WAIT
+  48  0233         AFTERKEY  
+  49  0233                   DEX
+  50  0234                   BNE DELAY ; Continue loop until it's time to increment hundredths by two.  ie. wait .02 seconds
+  51  0236                   NOP
+  52  0237                   CLC ; Clear Carry Flag
+  53  0238                   CLV ; Clear Overflow Flag
+  54  0239                   SED ; Set Decimal Flag
+  55  023A                   LDA #2 ; Load 2 into the accumulator
+  56  023C                   ADC $F9 ; Add right most digits to accumulator (increment by 2)
+  57  023E                   STA $F9 ; Store the incremented value back to the display
+  58  0240                   CLD ; Clear Decimal Flag 
+  60  0241                   BCS INCSEC ; If Carry is set, then it's time to increment seconds.
+  61  0243                   JMP BEGIN ; Go back to BEGIN 
+  63  0246         INCSEC    
+  64  0246                   CLC ; Clear Carry Flag
+  65  0247                   SED ; Set Decimal Flag
+  66  0248                   LDA #01 ; Load 1 to Accumulator
+  67  024A                   ADC $FA ; Add middle 2 digits to accumulator (increments by 1)
+  68  024C                   STA $FA ; Store the value back to the middle 2 digits
+  69  024E                   CLD ; Clear Decimal Flag
+  71  024F                   BCS INCHUN ; If Carry is set, it's time to increment the left digits
+  72  0251                   JMP BEGIN ; Go back to BEGIN 
+  74  0254         INCHUN    
+  75  0254                   CLC ; Clear Carry Flag
+  76  0255                   SED ; Set Decimal Flag
+  77  0256                   LDA #01 ; Load 1 to Accumulator
+  78  0258                   ADC $FB ; Add left most digits to accumulator (increment by 1)
+  79  025A                   STA $FB ; Store the incremented value back to the display
+  80  025C                   CLD ; Clear Decimal Flag
+  81  025D                   CLC ; Clear the Carry Flag
+  83  025E                   JMP BEGIN ; Back to BEGIN 
+
+symbols
+ AFTERKEY   $0233
+ BEGIN      $0224
+ CONT4      $021D
+ DELAY      $0229
+ INCHUN     $0254
+ INCSEC     $0246
+ RESTART    $0200
+ WAIT       $020C
+
+pass 2
+
+LOC   CODE         LABEL     INSTRUCTION
+
+                   ; Timer for Kim Uno (Scan Based Timer)
+                   ; 2 restarts at 0
+                   ; 4 will exit to KIM
+                   ; 1 starts the timer
+                   ; 3 pauses the timer
+                   ; assembled using 6502 Virtual online assembler
+                   ; https://www.masswerk.at/6502/assembler.html
+                   ; -- Ricky Bryce
+
+0200                         * = $0200
+0200               RESTART   
+0200  A9 00                  LDA #$00 ; Load Zeros to Registers
+0202  A2 00                  LDX #$00
+0204  A0 00                  LDY #$00
+0206  85 F9                  STA $F9 ; Store Zeros to Display
+0208  85 FA                  STA $FA
+020A  85 FB                  STA $FB
+020C               WAIT      
+020C  20 1F 1F               JSR $1F1F ; SCANDS (Update Display)
+020F  20 6A 1F               JSR $1F6A ; GETKEY (Check keys on Keypad)
+0212  C9 02                  CMP #$02 ; If 2, then Restart at Zero
+0214  F0 EA                  BEQ $0200
+0216  C9 04                  CMP #$04 ; If 4, then Exit to KIM
+0218  D0 03                  BNE $021D ; I had to BNE, since $1C64 is out of branch reach.
+021A  4C 64 1C               JMP $1C64 ; Exit 
+021D               CONT4     
+021D  C9 01                  CMP #$01 ; If 1, then go to BEGIN to start the timer
+021F  D0 EB                  BNE $020C
+0221  4C 24 02               JMP $0224
+0224               BEGIN     
+0224  20 1F 1F               JSR $1F1F ; SCANDS
+0227  A2 09                  LDX #$09 ; Calibration for timer
+0229               DELAY     
+0229  EA                     NOP
+022A  EA                     NOP
+022B  EA                     NOP
+022C  20 6A 1F               JSR $1F6A ; GETKEY
+022F  C9 03                  CMP #$03 ; If 3, then enter WAIT mode
+0231  F0 D9                  BEQ $020C
+0233               AFTERKEY  
+0233  CA                     DEX
+0234  D0 F3                  BNE $0229 ; Continue loop until it's time to increment hundredths by two.  ie. wait .02 seconds
+0236  EA                     NOP
+0237  18                     CLC ; Clear Carry Flag
+0238  B8                     CLV ; Clear Overflow Flag
+0239  F8                     SED ; Set Decimal Flag
+023A  A9 02                  LDA #$02 ; Load 2 into the accumulator
+023C  65 F9                  ADC $F9 ; Add right most digits to accumulator (increment by 2)
+023E  85 F9                  STA $F9 ; Store the incremented value back to the display
+0240  D8                     CLD ; Clear Decimal Flag 
+0241  B0 03                  BCS $0246 ; If Carry is set, then it's time to increment seconds.
+0243  4C 24 02               JMP $0224 ; Go back to BEGIN 
+0246               INCSEC    
+0246  18                     CLC ; Clear Carry Flag
+0247  F8                     SED ; Set Decimal Flag
+0248  A9 01                  LDA #$01 ; Load 1 to Accumulator
+024A  65 FA                  ADC $FA ; Add middle 2 digits to accumulator (increments by 1)
+024C  85 FA                  STA $FA ; Store the value back to the middle 2 digits
+024E  D8                     CLD ; Clear Decimal Flag
+024F  B0 03                  BCS $0254 ; If Carry is set, it's time to increment the left digits
+0251  4C 24 02               JMP $0224 ; Go back to BEGIN 
+0254               INCHUN    
+0254  18                     CLC ; Clear Carry Flag
+0255  F8                     SED ; Set Decimal Flag
+0256  A9 01                  LDA #$01 ; Load 1 to Accumulator
+0258  65 FB                  ADC $FB ; Add left most digits to accumulator (increment by 1)
+025A  85 FB                  STA $FB ; Store the incremented value back to the display
+025C  D8                     CLD ; Clear Decimal Flag
+025D  18                     CLC ; Clear the Carry Flag
+025E  4C 24 02               JMP $0224 ; Back to BEGIN 
+
+done (code: 0200..0260).
