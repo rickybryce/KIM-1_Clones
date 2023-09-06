@@ -3,5 +3,5 @@ This is a score board program for the Kim Uno, which is a clone of the KIM-1 com
 The center display will show "EF".  On the left, you will have the enemy score, and on the right, you have the friends score.<p>
 Buttons 6 and 7 will increment/decrement the enemy score.<p>
 Buttons 2 and 3 will control the friends score.<p>
-This program assembles using the <a href="https://www.masswerk.at/6502/assembler.html> Mass Werk virtuual online assembler.</a><p>
+<P>This program assembles using the A65 ASSEMBLER.  The MOS file is similar to Intel Hex, and can be used by navigating to 0200 on the terminal, and press "L".  At this point, just paste the MOS file into the KIM Monitor.</p>
 -- Ricky Bryce
