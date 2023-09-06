@@ -1,0 +1,123 @@
+                        
+                        ; SCOREBOARD FOR PAL-1
+                        ; BUTTONS 6 AND 7 INC/DEC ENEMY SCORE
+                        ; BUTTONS 2 AND 3 INC/DEC FRIENDS SCORE
+                        
+                        ; ASSEMBLED USING A65 ASSEMBLER
+                        ; TO COMPILE IN LINUX (AS PER MARK ABENE)
+                        ; ln -s a65.h A65.H
+                        ; gcc -I. -o a65 a65.c a65util.c a65eval.c
+                        ; THEN CREATE THE FOLLOWING FILE: ASM65 WITH CONTENTS
+                        ; (BE SURE dos2unix IS INSTALLED)
+                        ; -----------------------------------------------------
+                        ; #!/bin/bash
+                        ; ./a65 $1.asm -l $1.lst -o $1.hex 
+                        ; srec_cat $1.hex -intel -o $1.mos -MOS_Technologies
+                        ; unix2dos $1.mos
+                        ; -----------------------------------------------------
+                        ; THEN chmod +x ASM65 to make it executable
+                        ; THIS SCRIPT PUTS THE FILE INTO PAPER TAPE FORMAT
+                        ; IN THE KIM MONITOR, USE THE "L" COMMAND TO LOAD PAPER TAPE
+                        ; JUST PAST THE OUTPUT OF YOUR SCRIPT (*.mos) INTO TERMINAL.
+                                                
+                        ; -- Ricky Bryce
+                        
+   1f1f                 SCANDS: EQU $1F1F
+   1f6a                 GETKEY: EQU $1F6A
+   1c64                 EXIT:   EQU $1C64
+                        
+                        
+   0200                 	ORG $0200	; PAL-1 STARTS AT 0200H
+                        
+   0200                 RESTART:
+   0200   a9 00         	LDA #$00	; LOAD 0 TO ACCUMULATOR
+   0202   85 f9         	STA $F9		; STORE TO RIGHTMOST DISPLAY
+   0204   85 fb         	STA $FB		; STORE TO LEFTMOST DISPLAY
+   0206   a9 ef         	LDA #$EF	; LOAD EFH TO ACCUMULATOR
+   0208   85 fa         	STA $FA		; PLACE EF ON CENTER DISPLAY (ENEMY/FRIEND)
+   020a   a9 00         	LDA #00		; LOAD ZERO BACK TO ACCUMULATOR
+                        
+   020c                 MAIN:
+                        
+   020c   20 1f 1f      	JSR SCANDS  ; SCANDS SCANS THE DISPLAY
+   020f   20 6a 1f      	JSR GETKEY  ; GETKEY GETS USER INPUT FROM KEYPAD
+   0212   c9 0e         	CMP #$0E	; SEE IF THE USER PRESSED "E"
+   0214   d0 03         	BNE CONT	; IF NOT, THEN CONTINUE
+   0216   4c 64 1c      	JMP EXIT	; IF SO, THEN EXIT TO KIM MONITOR
+   0219                 CONT:
+   0219   c9 07         	CMP #$07	; SEE IF HE PRESSED 7
+   021b   f0 13         	BEQ INVIS	; IF SO, INCREMENT VISITORS SCORE
+   021d   c9 06         	CMP #$06	; DID HE PRESS 6?
+   021f   f0 1b         	BEQ DEVIS	; IF SO, DECEMENT VISITOR SCORE
+   0221   c9 03         	CMP #$03	; DID HE PRESS 3?
+   0223   f0 24         	BEQ INHM	; IF SO, INCREMENT HOME SCORE
+   0225   c9 02         	CMP #$02	; DID HE PRESS 2:
+   0227   f0 2c         	BEQ DEHM	; IF SO, DECREMENT HOME TEAM SCORE
+   0229   c9 00         	CMP #$00	; DID HE PRESS 0?
+   022b   f0 d3         	BEQ RESTART ; IF SO, RESTART PROGRAM
+   022d   4c 0c 02      	JMP MAIN	; JUMP BACK TO MAIN
+                        
+   0230                 INVIS:	; INCREMENT THE VISITOR SCORE
+   0230   18            	CLC			; CLEAR THE CARRY BIT
+   0231   f8            	SED			; THEN SET DECIMAL MODE
+   0232   a9 01         	LDA #$01	; LOAD 1 TO ACCUMULATOR
+   0234   65 fb         	ADC $FB		; ADD THIS TO LEFT DISPLAY BUFFER
+   0236   85 fb         	STA $FB		; THEN STORE THE NEW NUMBER
+   0238   d8            	CLD			; CLEAR THE DECIMAL FLAG
+   0239   4c 62 02      	JMP WAIT	; GO TO MAIN
+                        
+   023c                 DEVIS: 	; DECREMENT THE VISITOR SCORE
+   023c   f8            	SED			; SET DECIMAL MODE
+   023d   a5 fb         	LDA $FB		; LOAD THE RIGHT DISPLAY BUFFER
+   023f   38            	SEC			; SET THE CARRY BIT
+   0240   e9 01         	SBC #$01	; SUBTRACT 1
+   0242   85 fb         	STA $FB		; THEN STORE THE ANSWER
+   0244   18            	CLC			; CLEAR THE CARRY FLAG
+   0245   d8            	CLD			; CLEAR DECIMAL MODE
+   0246   4c 62 02      	JMP WAIT	; JUMP TO MAIN
+                        
+   0249                 INHM:	; INCREMENT THE HOME TEAM SCORE
+   0249   18            	CLC			; CLEAR THE CARRY BIT
+   024a   f8            	SED			; SET DECIMAL MODE
+   024b   a9 01         	LDA #$01	; LOAD 1 TO ACCUMULATOR
+   024d   65 f9         	ADC $F9		; ADD 1 TO RIGHT BUFFER
+   024f   85 f9         	STA $F9		; STORE THIS BACK TO BUFFER
+   0251   d8            	CLD			; CLEAR DECIMAL MODE
+   0252   4c 62 02      	JMP WAIT	; JUMP TO MAIN
+                        
+   0255                 DEHM: 	; DECREMENT THE HOME TEAM SCORE 
+   0255   f8            	SED			; SET DECIMAL MODE
+   0256   a5 f9         	LDA $F9		; LOAD RIGHT DISPLAY BUFFER
+   0258   38            	SEC			; SET THE CARRY FLAG
+   0259   e9 01         	SBC #$01	; SUBTRACT 1 FROM BUFFER
+   025b   85 f9         	STA $F9		; STORE THE ANSWER BACK TO BUFFER
+   025d   18            	CLC			; CLEAR THE CARRY FLAG
+   025e   d8            	CLD			; CLEAR DECIMAL MODE
+   025f   4c 62 02      	JMP WAIT	; BACK TO MAIN
+                        	
+   0262                 WAIT:	; AVOID DOUBLE COUNTS, BUT ALLOW REPEATS ON PAL-1
+   0262   a9 80         	LDA	#$80		; ABOUT QUARTER SECOND
+   0264   8d 75 02      	STA WAITTIME1	; STORE TO LOOP1
+   0267                 WAIT1:
+   0267   ce 75 02      	DEC WAITTIME1	; DECREMENT INNER LOOP
+                        	;LDA	#$80		; ADDITIONAL TIME IF DESIRED
+                        	;STA WAITTIME2		; STORE SECOND LOOP TIME IF USED
+   026a   20 1f 1f      	JSR SCANDS		; SCAN THE DISPLAY
+   026d                 WAIT2:
+                        	;DEC WAITTIME2		; DECREMENT SECOND WAIT TIME
+                        	;BNE WAIT2			; LOOP UNTIL WAITTIME2=0
+                        	
+   026d   ad 75 02      	LDA WAITTIME1	; LOAD CURRENT WAITIME 1
+   0270   d0 f5         	BNE WAIT1		; IF NOT YET ZERO, STAY IN LOOP
+                        	
+   0272   4c 0c 02      	JMP MAIN		; BACK TO MAIN
+                        
+                        
+   0275   00            WAITTIME1:	DB	00H
+   0276   00            WAITTIME2:	DB	00H
+   0277                 	END
+0219  CONT          0255  DEHM          023c  DEVIS         1c64  EXIT      
+1f6a  GETKEY        0249  INHM          0230  INVIS         020c  MAIN      
+0200  RESTART       1f1f  SCANDS        0262  WAIT          0267  WAIT1     
+026d  WAIT2         0275  WAITTIME1     0276  WAITTIME2     
+
