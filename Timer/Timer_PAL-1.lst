@@ -1,0 +1,112 @@
+                        ; TIMER FOR PAL-1 (SCAN BASED)
+                        ; 2 RESTARTS AT ZERO
+                        ; 4 EXITS TO KIM MONITOR
+                        ; 1 STARTS THE TIMER
+                        ; 3 PAUSES THE TIMER
+                        ; ASSEMBLED USING A65 ASSEMBLER
+                        ; TO COMPILE IN LINUX (AS PER MARK ABENE)
+                        ; ln -s a65.h A65.H
+                        ; gcc -I. -o a65 a65.c a65util.c a65eval.c
+                        ; THEN CREATE THE FOLLOWING FILE: ASM65 WITH CONTENTS
+                        ; (BE SURE dos2unix IS INSTALLED)
+                        ; -----------------------------------------------------
+                        ; #!/bin/bash
+                        ; ./a65 $1.asm -l $1.lst -o $1.hex 
+                        ; srec_cat $1.hex -intel -o $1.mos -MOS_Technologies
+                        ; unix2dos $1.mos
+                        ; -----------------------------------------------------
+                        ; THEN chmod +x ASM65 to make it executable
+                        ; THIS SCRIPT PUTS THE FILE INTO PAPER TAPE FORMAT
+                        ; IN THE KIM MONITOR, USE THE "L" COMMAND TO LOAD PAPER TAPE
+                        ; JUST PAST THE OUTPUT OF YOUR SCRIPT (*.mos) INTO TERMINAL.
+                        
+                        ; -- Ricky Bryce
+                        
+   1f1f                 SCANDS: EQU $1F1F
+   1f6a                 GETKEY: EQU $1F6A
+   1c64                 EXIT:   EQU $1C64
+   0001                 DLYTIME:    EQU 01H
+                        
+                        
+   0200                     ORG $0200   ; KIM-1 STARTS AT $0200
+                        
+   0200                 RESTART:
+   0200   d8                CLD         ; BE SURE DECIMAL MODE IS CLEARED
+   0201   a9 00             LDA #00     ; ZERO THE ACCUMULATOR
+   0203   a2 00             LDX #00     ; ZERO THE X REGISTER
+   0205   a0 00             LDY #00     ; ZERO THE Y REGISTER
+   0207   85 f9             STA $F9     ; RIGHTMOST DISPLAY
+   0209   85 fa             STA $FA     ; CENTER DISPLAY
+   020b   85 fb             STA $FB     ; LEFTMOST DISPLAY
+                        
+                            
+                        
+   020d                 WAIT:           ; WAIT FOR OPERATOR INPUT
+   020d   20 1f 1f          JSR SCANDS  ; SCANDS (UPDATE DISPLAY)
+   0210   20 6a 1f          JSR GETKEY  ; GETKEY (CHECK THE KEYS ON KEYPAD)
+   0213   c9 02             CMP #$02    ; SEE IF THE OPERATOR ENTERED  2
+   0215   f0 e9             BEQ RESTART ; IF SO, THEN RESTART
+   0217   c9 04             CMP #$04    ; IF 4, THEN EXIT TO KIM MONITOR
+   0219   d0 00             BNE CONT4   ; CONTINUE
+                        
+                        
+   021b                 CONT4:
+   021b   c9 01             CMP #$01    ; IF 1, THEN GO TO BEGIN TO START THE TIMER
+   021d   d0 ee             BNE WAIT    ; OTHERWISE, WAIT
+   021f   4c 22 02          JMP BEGIN   ; START THE TIMER
+                            
+   0222                 BEGIN:
+   0222   20 1f 1f          JSR SCANDS  ; SCANDS (UPDATE DISPLAY)
+   0225   a5 01             LDA DLYTIME ; CALIBRATION FOR TIMER
+   0227   8d 65 02          STA DLYCNT
+                            
+   022a                 DELAY: 
+   022a   ea                NOP         ; NOP FOR CALIBRATION
+   022b   20 6a 1f          JSR GETKEY  ; GETKEY
+   022e   c9 03             CMP #$03    ; IF 3, THEN ENTER WAIT MODE
+   0230   f0 db             BEQ WAIT 
+                        
+   0232                 AFTERKEYCHECK:
+   0232   ce 65 02          DEC DLYCNT   ; DECREMENT INDEX REGISTER
+   0235   ad 65 02          LDA DLYCNT
+   0238   d0 f0             BNE DELAY   ; CONTINUE UNTIL IT'S TIME TO UPDATE HUNDREDTHS BY 2
+   023a   ea                NOP         ; NO OPERATION
+   023b   18                CLC         ; CLEAR THE CARRY FLAG
+   023c   b8                CLV         ; CLEAR THE OVERFLOW FLAG
+   023d   f8                SED         ; SET THE DECIMAL FLAG
+   023e   a9 05             LDA #5      ; LOAD 2 TO ACCUMULATOR SINCE IT'S TOO SLOW TO INC BY 1
+   0240   65 f9             ADC $F9     ; ADD RIGHTMOST DIGITS TO ACCUMULATOR
+   0242   85 f9             STA $F9     ; STORE THE NEW VALUE TO DISPLAY BUFFER
+   0244   d8                CLD         ; NOW, CLEAR THE DECIMAL FLAG
+                        
+   0245   b0 03             BCS INCSEC  ; IF CARRY IS SET, THEN IT'S TIME TO INCREMENT SECONDS
+   0247   4c 22 02          JMP BEGIN   ; THEN GO BACK TO BEGINNING
+                        
+   024a                 INCSEC:         ; INCREMENT SECONDS
+   024a   18                CLC         ; CLEAR THE CARRY FLAG
+   024b   f8                SED         ; SET THE DECIMAL FLAG
+   024c   a9 01             LDA #01     ; LOAD 1 TO ACCUMULATOR
+   024e   65 fa             ADC $FA     ; THEN ADD TO MIDDLE TWO DIGITS (SECONDS)
+   0250   85 fa             STA $FA     ; STORE VALUE BACK TO DISPLAY BUFFER
+   0252   d8                CLD         ; THEN CLEAR DECIMAL FLAG
+                        
+   0253   b0 03             BCS INCHUN  ; IF CARRY IS SET, THEN IT'S TIME TO INCREMENT HUNDREDTHS
+   0255   4c 22 02          JMP BEGIN   ; IF NOT, THEN GO BACK TO BEGIN
+                        
+   0258                 INCHUN:
+   0258   18                CLC         ; CLEAR THE CARRY FLAG
+   0259   f8                SED         ; SET THE DECIMAL FLAG
+   025a   a9 01             LDA #01     ; LOAD 1 TO ACCUMULATOR
+   025c   65 fb             ADC $FB     ; INCREMENT LEFTMOST DIGITS BY ONE
+   025e   85 fb             STA $FB     ; STORE THIS BACK TO THE DISPLAY BUFFER
+   0260   d8                CLD         ; CLEAR THE DECIMAL FLAG
+   0261   18                CLC         ; CLEAR THE CARRY FLAG
+                        
+   0262   4c 22 02          JMP BEGIN   ; GO BACK TO BEGINNING
+   0265   09            DLYCNT: DB  09H
+   0266                     END
+0232  AFTERKEYCHECK    0222  BEGIN         021b  CONT4         022a  DELAY     
+0265  DLYCNT        0001  DLYTIME       1c64  EXIT          1f6a  GETKEY    
+0258  INCHUN        024a  INCSEC        0200  RESTART       1f1f  SCANDS    
+020d  WAIT          
+
