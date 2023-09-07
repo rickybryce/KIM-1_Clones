@@ -1,4 +1,5 @@
 <h1>Binary, Octal, and Hex display for PAL-1</h1>
+<p>The .mos file is a paper tape file.  This is similar to an Intel Hex file.  On the PAL-1, simply go to address $0200, and use the "L" command from the terminal, then paste the contents of the mos file.  Run from $0200 as well.</p>
 <pre>
   
 ; BINARY OCTAL HEX COUNTER FOR PAL-1
