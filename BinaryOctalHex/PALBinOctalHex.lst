@@ -1,0 +1,197 @@
+                        
+                        ; BINARY OCTAL HEX COUNTER FOR PAL-1
+                        ; BUTTONS 2 TO F WILL SET DELAY TIME
+                        ; (F=MOST DELAY, 2 IS LEAST DELAY)
+                        ; BUTTON 0 RESETS, BUTTON 1 ENTERS
+                        ; SINGLE STEP MODE
+                        
+                        ; BINARY DISPLAY REQUIRES 2ND RIOT WITH 
+                        ; I/O MODULE
+                        
+                        ; ASSEMBLED USING A65 ASSEMBLER
+                        ; https://www.retrotechnology.com/restore/a65c.html
+                        ; TO COMPILE IN LINUX (AS PER MARK ABENE)
+                        ; ln -s a65.h A65.H ; (OR VICE VERSA)
+                        ; gcc -I. -o a65 a65.c a65util.c a65eval.c
+                        ; THEN CREATE THE FOLLOWING FILE: ASM65 WITH CONTENTS
+                        ; (BE SURE dos2unix IS INSTALLED)
+                        ; -----------------------------------------------------
+                        ; #!/bin/bash
+                        ; ./a65 $1.asm -l $1.lst -o $1.hex 
+                        ; srec_cat $1.hex -intel -o $1.mos -MOS_Technologies
+                        ; unix2dos $1.mos
+                        ; -----------------------------------------------------
+                        ; THEN chmod +x ASM65 to make it executable
+                        ; THIS SCRIPT PUTS THE FILE INTO PAPER TAPE FORMAT
+                        ; IN THE KIM MONITOR, USE THE "L" COMMAND TO LOAD PAPER TAPE
+                        ; JUST PAST THE OUTPUT OF YOUR SCRIPT (*.mos) INTO TERMINAL.
+                        ; DON'T FORGET TO SET UP YOUR DELAYS.  I USED A 10MS CHAR DELAY
+                        ; AND A 250MS LINE DELAY.
+                                                
+                        ; -- Ricky Bryce
+                        
+                        ; *** BEGIN HEAD ***
+   1f1f                 SCANDS: EQU $1F1F   ; SCANS THE DISPLAY 
+   1f6a                 GETKEY: EQU $1F6A   ; GETS VALUE FROM KEYPAD
+   1c64                 EXIT:   EQU $1C64   ; EXITS TO KIM MONITOR
+   1703                 PBDD:   EQU $1703   ; DATA DIRECTION FOR REGISTER B (LEDS)
+                                            ; 0=INPUT, 1=OUTPUT
+   1702                 PBD:    EQU $1702   ; DATA REGISTER B (LEDS)
+                        ; *** END HEAD ***
+                        
+   0200                 	ORG $0200	; PAL-1 STARTS AT 0200H
+                        ; *** INITIALIZE ***
+   0200                 INIT:
+                        
+   0200   a9 ff                 LDA #$FF    ; LOAD A WITH INITIAL DELAY
+   0202   8d e2 02              STA DLYTIME ; STORE THIS TO DELAYTIME
+   0205   a9 ff                 LDA #$FF    ; LOAD FF TO ACCUMULATOR
+   0207   8d 03 17              STA PBDD    ; SET REGISTER B (ALL BITS) TO OUTPUT MODE
+   020a   a9 00                 LDA #$00    ; LOAD ACCUMULATOR WITH 0 AGAIN
+   020c   8d 02 17              STA PBD     ; STORE THIS TO LEDS
+   020f   20 1f 1f              JSR SCANDS  ; SCAN THE DISPLAY
+                                
+   0212                 INIT2:
+   0212   a9 00                 LDA #$00    ; LOAD ZERO TO ACCUMULATOR
+   0214   85 fb                 STA $FB     ; CLEAR LEFTMOST DIGITS
+   0216   85 fa                 STA $FA     ; CLEAR MIDDLE TWO DIGITS
+   0218   85 f9                 STA $F9     ; CLEAR RIGHTMOST DIGITS
+   021a   8d df 02              STA HEXCOUNTER ; INITIALIZE HEX COUNTER AT ZERO
+   021d   8d e0 02              STA OCTCOUNTERL ; INITIALIZE OCTAL LOW COUNTER AT ZERO
+   0220   8d e1 02              STA OCTCOUNTERH ; INITIALIZE OCTAL HIGH COUNTER AT ZERO
+                        ; *** END INITIALIZE ***     
+                        
+                        ; *** MAIN ROUTINE ***
+   0223                 MAIN:
+                                
+   0223                 OCTLNYB:  
+   0223   ad e0 02              LDA OCTCOUNTERL ; LOAD THE LOW OCTAL BYTE
+   0226   29 0f                 AND #$0F        ; MASK UPPER BITS
+   0228   c9 08                 CMP #$08        ; SEE IF IT'S REACHED 8
+   022a   d0 16                 BNE OCTALOK     ; IF NOT, THEN CONTINUE
+   022c   ad e0 02              LDA OCTCOUNTERL ; RELOAD LOW BYTE
+   022f   69 07                 ADC #$07        ; ADD 7
+   0231   8d e0 02              STA OCTCOUNTERL ; STORE THE NEW VALUE
+   0234                 OCTHNYB:
+   0234   29 f0                 AND #$F0        ; MASK OUT LOWER BITS
+   0236   c9 80                 CMP #$80        ; SEE IF IT'S REACHED 80
+   0238   d0 08                 BNE OCTALOK     ; IF NOT, THEN CONTINUE
+   023a   a9 00                 LDA #$00        ; LOAD A WITH ZERO
+   023c   8d e0 02              STA OCTCOUNTERL   ; STORE ZERO TO OCTALCOUNTERL
+   023f   ee e1 02              INC OCTCOUNTERH   ; INCREMENT OCTALCOUNTERH
+                                
+   0242                 OCTALOK:
+   0242   ad e0 02              LDA OCTCOUNTERL ; LOAD THE LOW OCTAL BYTE
+   0245   85 fa                 STA $FA         ; STORE THIS TO CENTER DISPLAY
+   0247   ad e1 02              LDA OCTCOUNTERH ; LOAD THE HIGH OCTAL BYTE
+   024a   85 fb                 STA $FB         ; STORE THIS TO THE LEFT DISPLAY
+   024c   ad df 02              LDA HEXCOUNTER  ; LOAD THE HEX COUNTER
+   024f   85 f9                 STA $F9         ; THEN STORE THIS TO RIGHT DIGITS
+   0251   8d 02 17              STA PBD         ; STORE THIS TO LEDS
+   0254   20 1f 1f              JSR SCANDS      ; SCAN THE DISPLAY
+   0257   20 84 02              JSR DELAY       ; RUN THE DELAY ROUTINE
+   025a   ad e4 02              LDA SINGLESTEP  ; SEE IF SINGLE STOP MODE IS ON
+   025d   c9 00                 CMP #$00
+   025f   f0 03                 BEQ CONTMAIN    ; CONTINUE MAIN
+   0261   20 74 02              JSR SST         ; JUMP TO SINGLE STEP
+   0264                 CONTMAIN:
+   0264   ee e0 02              INC OCTCOUNTERL ; INCREMENT OCTAL COUNTER LOW
+   0267   ee df 02              INC HEXCOUNTER  ; INCREMENT THE HEX COUNTER
+   026a   ad df 02              LDA HEXCOUNTER  ; RELOAD HEX COUNTER
+   026d   c9 00                 CMP #$00        ; SEE IF IT'S ZERO
+   026f   f0 a1                 BEQ INIT2       ; IF SO, RE-INITIALIZE ALL REGISTERS
+   0271   4c 23 02              JMP MAIN        ; BACK TO MAIN
+                          
+                        ; *** END MAIN ROUTINE ***
+                        
+                        ; *** SINGLE STEP ROUTINE ***
+   0274                 SST:                ; DESTRUCTIVE TO A, AND SETS DELAY TO 50H
+                                            ; NO ENTRY VARS, BUT SINGLESTEP IS SET
+                                            ; NO EXIT VARS
+   0274   a9 80                 LDA #$80    ; LOAD 70 TO ACCUMULATOR
+   0276   8d e2 02              STA DLYTIME ; STORE THIS TO DELAY TIME
+   0279   20 1f 1f              JSR SCANDS  ; SCAN THE DISPLAY
+   027c   20 6a 1f              JSR GETKEY  ; CHECK THE KEYS
+   027f   c9 15                 CMP #$15    ; SEE IF IT'S ZERO
+   0281   f0 f1                 BEQ SST  ; IF SO, THEN CLEAR SINGLE STEP
+   0283   60                    RTS         ; RETURN FROM SUBROUINTE
+                        ; *** END SINGLE STEP ROUTINE ***
+                        
+                        
+                        ; *** BEGIN DELAY ROUTINE ***
+   0284                 DELAY:              ; DELAY ROUTINE (DESTRUCTIVE TO A)
+                                            ; ENTRY > DLYTIME = AMOUNT OF DELAY
+                                            ; EXIT > DLYCTR = 0
+   0284   ad e2 02              LDA DLYTIME ; LOAD DELAYTIME TO ACCUMULATOR
+   0287   8d e3 02              STA DLYCTR  ; STORE THE DLYTIME TO DLYCTR
+   028a                 DLYLOOP:
+   028a   ce e3 02              DEC DLYCTR  ; DECREMENTS DLYCTR MEMORY LOCATION
+   028d   20 1f 1f              JSR SCANDS  ; SCAN THE DISPLAY
+   0290   20 9b 02              JSR CHECKKEY; CHECK FOR NEW DELAY VALUE
+   0293   ad e3 02              LDA DLYCTR
+   0296   c9 00                 CMP #$00
+   0298   d0 f0                 BNE DLYLOOP ; IF NOT YET ZERO, STAY IN LOOP
+   029a   60                    RTS         ; RETURN FROM SUBROUTINE
+                        ; *** END DELAY ROUTINE ***       
+                        
+                        ; *** BEGIN CHECKKEY ROUTINE ***
+   029b                 CHECKKEY:           ; CHECKS KEYPAD ENTRY (DESTRUCTIVE TO A)
+                                            ; ENTRY > NONE
+                                            ; EXIT > DLYTIME = KEY ENTRY (IF PRESSED)
+   029b   20 6a 1f              JSR GETKEY  ; GET THE KEYS
+   029e   c9 01                 CMP #$01     ; SEE IF THE VALUE IS 1
+   02a0   d0 08                 BNE NOT1    ; BRANCH TO NOT1
+   02a2   a9 01                 LDA #$01    ; OTHERWISE, LOAD 1 TO ACCUMULTAOR
+   02a4   8d e4 02              STA SINGLESTEP  ; SET SINGLESTEP MODE
+   02a7   4c de 02              JMP KEYRET
+   02aa                 NOT1:        
+   02aa   20 6a 1f              JSR GETKEY  ; GET THE VALUE FROM THE KEYPAD
+   02ad   c9 15                 CMP #$15    ; #$15 = NO KEY PRESSED
+   02af   f0 2d                 BEQ KEYRET  ; IF NO KEY PRESSED, RETURN
+   02b1   c9 00                 CMP #$00    ; CHECK FOR ZERO
+   02b3   f0 18                 BEQ KEYZERO ; IF ZERO RESET
+   02b5   c9 01                 CMP #$01    ; SEE IF 1 WAS PRESSED
+   02b7   f0 25                 BEQ KEYRET  ; IF SO, CON'T CLEAR SINGLE STEP
+   02b9   a9 00                 LDA #$00    ; LOAD ZERO TO ACCUMULATOR
+   02bb   8d e4 02              STA SINGLESTEP  ; CLEAR SINGLE STEP MODE
+   02be   20 6a 1f              JSR GETKEY  ; A WAS DESTROYED, SO RELOAD KEYS
+   02c1   2a                    ROL A       ; ROTATE LEFT A FEW TIMES TO SLOW THE TIME
+   02c2   2a                    ROL A
+   02c3   2a                    ROL A
+   02c4   2a                    ROL A
+   02c5   29 f0                 AND #$F0    ; DROP ANY LOWER BITS
+   02c7   8d e2 02              STA DLYTIME ; OTHERWISE STORE NEW VALUE TO DLYTIME
+   02ca   4c de 02              JMP KEYRET
+                                
+   02cd                 KEYZERO: ; RESET
+   02cd   a9 00                 LDA #$00    ; LOAD ZERO TO ACCUMULATOR
+   02cf   85 fb                 STA $FB     ; CLEAR LEFTMOST DIGITS
+   02d1   85 fa                 STA $FA     ; CLEAR MIDDLE TWO DIGITS
+   02d3   85 f9                 STA $F9     ; CLEAR RIGHTMOST DIGITS
+   02d5   8d df 02              STA HEXCOUNTER ; INITIALIZE HEX COUNTER AT ZERO
+   02d8   8d e0 02              STA OCTCOUNTERL ; INITIALIZE OCTAL LOW COUNTER AT ZERO
+   02db   8d e1 02              STA OCTCOUNTERH ; INITIALIZE OCTAL HIGH COUNTER AT ZERO
+   02de                 KEYRET:
+   02de   60                    RTS         ; RETURN FROM SUBROUTINE
+                        ; *** END CHECKKEY ROUTINE ***
+                        
+                                            
+                                            
+                        ; *** FOOTER ***
+   02df   00            HEXCOUNTER:     DB  00
+   02e0   00            OCTCOUNTERL:    DB  00
+   02e1   00            OCTCOUNTERH:    DB  00
+   02e2   00            DLYTIME:        DB  00
+   02e3   00            DLYCTR:         DB  00
+   02e4   00            SINGLESTEP:     DB  00
+                        ; *** END FOOTER ***
+                        
+   02e5                     END
+029b  CHECKKEY      0264  CONTMAIN      0284  DELAY         02e3  DLYCTR    
+028a  DLYLOOP       02e2  DLYTIME       1c64  EXIT          1f6a  GETKEY    
+02df  HEXCOUNTER    0200  INIT          0212  INIT2         02de  KEYRET    
+02cd  KEYZERO       0223  MAIN          02aa  NOT1          0242  OCTALOK   
+02e1  OCTCOUNTERH    02e0  OCTCOUNTERL    0234  OCTHNYB       0223  OCTLNYB   
+1702  PBD           1703  PBDD          1f1f  SCANDS        02e4  SINGLESTEP
+0274  SST           
+
