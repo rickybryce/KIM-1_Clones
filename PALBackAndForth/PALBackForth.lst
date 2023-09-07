@@ -1,0 +1,140 @@
+                        
+                        ; BACK AND FORTH FOR PAL-1
+                        ; CYLON EFFECT
+                        ; (F=MOST DELAY, 0=LEAST DELAY)
+                        
+                        ; BINARY DISPLAY REQUIRES 2ND RIOT WITH 
+                        ; I/O MODULE
+                        
+                        ; ASSEMBLED USING A65 ASSEMBLER
+                        ; https://www.retrotechnology.com/restore/a65c.html
+                        ; TO COMPILE IN LINUX (AS PER MARK ABENE)
+                        ; ln -s a65.h A65.H ; (OR VICE VERSA)
+                        ; gcc -I. -o a65 a65.c a65util.c a65eval.c
+                        ; THEN CREATE THE FOLLOWING FILE: ASM65 WITH CONTENTS
+                        ; (BE SURE dos2unix IS INSTALLED)
+                        ; -----------------------------------------------------
+                        ; #!/bin/bash
+                        ; ./a65 $1.asm -l $1.lst -o $1.hex 
+                        ; srec_cat $1.hex -intel -o $1.mos -MOS_Technologies
+                        ; unix2dos $1.mos
+                        ; -----------------------------------------------------
+                        ; THEN chmod +x ASM65 to make it executable
+                        ; THIS SCRIPT PUTS THE FILE INTO PAPER TAPE FORMAT
+                        ; IN THE KIM MONITOR, USE THE "L" COMMAND TO LOAD PAPER TAPE
+                        ; JUST PAST THE OUTPUT OF YOUR SCRIPT (*.mos) INTO TERMINAL.
+                        ; DON'T FORGET TO SET UP YOUR DELAYS.  I USED A 10MS CHAR DELAY
+                        ; AND A 250MS LINE DELAY.
+                                                
+                        ; -- Ricky Bryce
+                        
+                        ; *** BEGIN HEAD ***
+   1f1f                 SCANDS: EQU $1F1F   ; SCANS THE DISPLAY 
+   1f6a                 GETKEY: EQU $1F6A   ; GETS VALUE FROM KEYPAD
+   1c64                 EXIT:   EQU $1C64   ; EXITS TO KIM MONITOR
+   1703                 PBDD:   EQU $1703   ; DATA DIRECTION FOR REGISTER B (LEDS)
+                                            ; 0=INPUT, 1=OUTPUT
+   1702                 PBD:    EQU $1702   ; DATA REGISTER B (LEDS)
+                        ; *** END HEAD *** 
+                        
+                        ; *** BEGIN INITIALIZE ***
+   0000                 INIT:
+   0000   d8                    CLD         ; CLEAR DECIMAL MODE
+   0001   18                    CLC         ; CLEAR CARRY FLAG
+   0002   a9 30                 LDA #$30    ; LOAD A WITH INITIAL DELAY
+   0004   8d 84 00              STA DLYTIME ; STORE THIS TO DELAYTIME
+   0007   a9 ff                 LDA #$FF    ; LOAD FF TO ACCUMULATOR
+   0009   8d 03 17              STA PBDD    ; SET REGISTER B (ALL BITS) TO OUTPUT MODE
+   000c   a9 00                 LDA #$00    ; LOAD ACCUMULATOR WITH 0 AGAIN
+   000e   8d 02 17              STA PBD     ; STORE THIS TO LEDS
+   0011   85 fb                 STA $FB     ; CLEAR DISPLAY
+                        ; *** END INITIALIZE ***
+   0013                 MAIN:
+   0013   a9 01                 LDA #$01    ; LOAD 1 TO ACCUMULATOR
+   0015   8d 86 00              STA POSITION ; STORE 1 TO POSITION
+   0018   8d 02 17              STA PBD     ; WRITE THIS TO LEDS
+   001b                 ROTL:   
+   001b   20 42 00              JSR DELAY   ; CALL THE DELAY LOOP
+   001e   ad 86 00              LDA POSITION    ; RELOAD POSITION
+   0021   18                    CLC         ; CLEAR CARRY
+   0022   2a                    ROL A       ; ARITHMETIC SHIFT LEFT
+   0023   8d 86 00              STA POSITION    ;STORE THE NEW POSITION
+   0026   8d 02 17              STA PBD     ; STORE TO LEDS
+   0029   c9 80                 CMP #$80    ; SEE IF IT'S REACHED 80
+   002b   d0 ee                 BNE ROTL    ; IF NOT, KEEP ROTATING
+   002d                 ROTR:
+   002d   20 42 00              JSR DELAY   ; CALL THE DELAY ROUTINE
+   0030   ad 86 00              LDA POSITION    ; LOAD THE POSITION
+   0033   18                    CLC         ; CLEAR CARRY
+   0034   6a                    ROR A       ; LOGICAL SHIFT RIGHT
+   0035   8d 86 00              STA POSITION    ; STORE THE NEW POSITION
+   0038   8d 02 17              STA PBD     ; STORE TO LEDS
+   003b   c9 01                 CMP #$01    ; SEE IF IT'S 1 YET
+   003d   d0 ee                 BNE ROTR    ; IF NOT, ROTATE RIGHT
+   003f   4c 13 00              JMP MAIN    ; JUMP TO MAIN
+                         
+                        ; *** MAIN ROUTINE ***
+                        
+                        
+                        ; *** END MAIN ROUTINE ***
+                        
+                        ; *** BEGIN DELAY ROUTINE ***
+   0042                 DELAY:              ; DELAY ROUTINE (DESTRUCTIVE TO A)
+                                            ; ENTRY > DLYTIME = AMOUNT OF DELAY
+                                            ; EXIT > DLYCTR = 0
+   0042   ad 84 00              LDA DLYTIME    ;LDA DLYTIME ; LOAD DELAYTIME TO ACCUMULATOR
+   0045   8d 85 00              STA DLYCTR  ; STORE THE DLYTIME TO DLYCTR
+   0048   85 f9                 STA $F9     ; STORE THE DELAYTIME TO RIGHTMOST DISPLAY
+   004a                 DLYLOOP:
+   004a   20 60 00              JSR CHECKKEY    ; CHECK THE KEYS
+   004d   ce 85 00              DEC DLYCTR  ; DECREMENTS DLYCTR MEMORY LOCATION
+   0050   ad 85 00              LDA DLYCTR
+   0053   85 fa                 STA $FA
+   0055   20 1f 1f              JSR SCANDS
+   0058   ad 85 00              LDA DLYCTR
+   005b   c9 00                 CMP #$00
+   005d   d0 eb                 BNE DLYLOOP ; IF NOT YET ZERO, STAY IN LOOP
+   005f   60                    RTS         ; RETURN FROM SUBROUTINE
+                        ; *** END DELAY ROUTINE ***       
+                        
+                        ; *** BEGIN CHECKKEY ROUTINE ***
+   0060                 CHECKKEY:           ; CHECKS KEYPAD ENTRY (DESTRUCTIVE TO A)
+                                            ; ENTRY > NONE
+                                            ; EXIT > DLYTIME = KEY ENTRY (IF PRESSED)     
+   0060   20 6a 1f              JSR GETKEY  ; GET THE VALUE FROM THE KEYPAD
+   0063   c9 15                 CMP #$15    ; #$15 = NO KEY PRESSED
+   0065   f0 1c                 BEQ KEYRET  ; IF NO KEY PRESSED, RETURN
+   0067   8d 84 00              STA DLYTIME ; STORE THE DELAYTIME
+   006a   c9 00                 CMP #$00    ; CHECK FOR KEY 0
+   006c   d0 08                 BNE SETTIME ; IF NOT ZERO SET THE TIME
+   006e   a9 01                 LDA #$01    ; OTHERWISE, LOAD A 10
+   0070   8d 84 00              STA DLYTIME
+   0073   4c 83 00              JMP KEYRET
+   0076                 SETTIME:
+   0076   ad 84 00              LDA DLYTIME ; LOAD THE DELAYTIME
+   0079   2a                    ROL A       ; ROTATE LEFT A FEW TIMES TO SLOW THE TIME
+   007a   2a                    ROL A
+                                ;ROL A
+                                ;ROL A
+   007b   29 fc                 AND #$FC    ; DROP ANY LOWER BITS FROM PREVIOUS CARRY
+   007d   8d 84 00              STA DLYTIME ; OTHERWISE STORE NEW VALUE TO DLYTIME
+   0080   4c 83 00              JMP KEYRET
+                        
+   0083                 KEYRET:
+   0083   60                    RTS         ; RETURN FROM SUBROUTINE
+                                
+                        ; *** END CHECKKEY ROUTINE ***
+                        
+                        ; *** FOOTER ***
+   0084   00            DLYTIME:        DB  $00
+   0085   00            DLYCTR:         DB  $00
+   0086   00            POSITION:       DB  $00
+                        ; *** END FOOTER ***
+                        
+   0087                     END
+0060  CHECKKEY      0042  DELAY         0085  DLYCTR        004a  DLYLOOP   
+0084  DLYTIME       1c64  EXIT          1f6a  GETKEY        0000  INIT      
+0083  KEYRET        0013  MAIN          1702  PBD           1703  PBDD      
+0086  POSITION      001b  ROTL          002d  ROTR          1f1f  SCANDS    
+0076  SETTIME       
+
